@@ -35,9 +35,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  double counter = 0;
+  int counter = 0;
+  final TextEditingController _controller = TextEditingController();
   Color btnColor = const Color.fromARGB(255, 34, 36, 34);
-
   late List<TicketData> _choices;
   late double ticket_amt;
   double total_amt = 0.0;
@@ -54,7 +54,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-
+    _controller.text = "0";
     _defaultChoiceIndex = 0;
     ticket_amt = 5.00;
     tally = formatter.format(num.parse(total_amt.toString()));
@@ -204,46 +204,69 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             Expanded(
               flex: 3,
-              child: SizedBox(
-                height: 150,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    RawMaterialButton(
-                      constraints:
-                          const BoxConstraints.tightFor(width: 30, height: 30),
-                      elevation: 6.0,
-                      onPressed:
-                          counter == 0 ? _resetCounter : _decrementCounter,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15 * 0.2)),
-                      fillColor: btnColor,
-                      child: const Icon(
-                        Icons.remove,
-                        color: Colors.white,
-                        size: 20 * 0.8,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  RawMaterialButton(
+                    constraints:
+                        const BoxConstraints.tightFor(width: 30, height: 30),
+                    elevation: 6.0,
+                    onPressed: counter == 0
+                        ? () {
+                            _resetCounter();
+                            _controller.text = counter.toString();
+                          }
+                        : () {
+                            _decrementCounter();
+                            _controller.text = counter.toString();
+                          },
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15 * 0.2)),
+                    fillColor: btnColor,
+                    child: const Icon(
+                      Icons.remove,
+                      color: Colors.white,
+                      size: 20 * 0.8,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 50,
+                    child: TextField(
+                      controller: _controller,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
                       ),
+                      onChanged: (String value) {
+                        setState(() {
+                          counter = int.parse(value);
+                          _controller.selection = TextSelection.fromPosition(
+                              TextPosition(offset: value.length));
+                          total_amt = ticket_amt * counter;
+                          tally =
+                              formatter.format(num.parse(total_amt.toString()));
+                        });
+                      },
                     ),
-                    Text(
-                      '$counter',
-                      style: Theme.of(context).textTheme.headline4,
+                  ),
+                  RawMaterialButton(
+                    constraints:
+                        const BoxConstraints.tightFor(width: 30, height: 30),
+                    elevation: 6.0,
+                    onPressed: () {
+                      _incrementCounter();
+                      _controller.text = counter.toString();
+                    },
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15 * 0.2)),
+                    fillColor: btnColor,
+                    child: const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 20 * 0.8,
                     ),
-                    RawMaterialButton(
-                      constraints:
-                          const BoxConstraints.tightFor(width: 30, height: 30),
-                      elevation: 6.0,
-                      onPressed: _incrementCounter,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15 * 0.2)),
-                      fillColor: btnColor,
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20 * 0.8,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             Expanded(
