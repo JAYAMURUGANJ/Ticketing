@@ -1,7 +1,11 @@
-import 'package:hrmc_ticketing/view/screen/ticket_page.dart';
+// ignore_for_file: non_constant_identifier_names, unused_field
+
+import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'model/ticket_class.dart';
+import 'print.dart';
 import 'view/widget/ticket.dart';
 
 void main() {
@@ -42,6 +46,11 @@ class _MyHomePageState extends State<MyHomePage> {
   late double ticket_amt;
   double total_amt = 0.0;
   late int _defaultChoiceIndex;
+  BlueThermalPrinter printer = BlueThermalPrinter.instance;
+  List<BluetoothDevice> _devices = [];
+  late BluetoothDevice _device;
+  bool _connected = false;
+  bool _pressed = false;
   final formatter = NumberFormat.currency(
     locale: 'hi_IN',
     decimalDigits: 2,
@@ -50,14 +59,55 @@ class _MyHomePageState extends State<MyHomePage> {
   DateTime now = DateTime.now();
 
   late String tally;
+  late String date;
+  late String time;
+  late String ticket_name;
+  late String ticket_price;
+
+  Future<void> initPlatformState() async {
+    List<BluetoothDevice> devices = [];
+
+    try {
+      devices = await printer.getBondedDevices();
+    } on PlatformException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to get paired devices.'),
+        ),
+      );
+    }
+
+    printer.onStateChanged().listen((state) {
+      switch (state) {
+        case BlueThermalPrinter.CONNECTED:
+          setState(() {
+            _connected = true;
+            _pressed = false;
+          });
+          break;
+        case BlueThermalPrinter.DISCONNECTED:
+          setState(() {
+            _connected = false;
+            _pressed = false;
+          });
+          break;
+        default:
+          print(state);
+          break;
+      }
+    });
+
+    if (!mounted) return;
+    setState(() {
+      _devices = devices;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    initPlatformState();
     _controller.text = "0";
-    _defaultChoiceIndex = 0;
-    ticket_amt = 5.00;
-    tally = formatter.format(num.parse(total_amt.toString()));
     _choices = [
       TicketData(
           ticketId: 1, ticketName: 'Archanai Ticket', ticketAmount: 5.00),
@@ -103,7 +153,9 @@ class _MyHomePageState extends State<MyHomePage> {
       TicketData(
           ticketId: 15, ticketName: 'Maa Villaku Ticket', ticketAmount: 5.00)
     ];
-    print(_defaultChoiceIndex + 1);
+    _defaultChoiceIndex = _choices[0].ticketId! - 1;
+    ticket_amt = _choices[0].ticketAmount!;
+    tally = formatter.format(num.parse(total_amt.toString()));
   }
 
   void _incrementCounter() {
@@ -135,75 +187,91 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) {
+                return const PrinterSettings();
+              }));
+            },
+          ),
+        ],
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             Expanded(
-              flex: 6,
-              child: GridView.builder(
-                itemCount: _choices.length,
-                itemBuilder: (BuildContext context, int index) {
-                  var chipvalue = _choices[index];
-                  return ChoiceChip(
-                    label: Row(
-                      children: [
-                        //custom circle icon
-                        CircleAvatar(
-                          backgroundColor: Colors.white,
-                          radius: 10,
-                          child: Text(_choices[index].ticketId.toString()),
-                        ),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        Expanded(
-                          child: Text(
-                            _choices[index].ticketName.toString(),
-                            overflow: TextOverflow.ellipsis,
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  itemCount: _choices.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    var chipvalue = _choices[index];
+                    return ChoiceChip(
+                      label: Row(
+                        children: [
+                          //custom circle icon
+                          CircleAvatar(
+                            backgroundColor: Colors.white,
+                            radius: 10,
+                            child: Text(_choices[index].ticketId.toString()),
                           ),
-                        ),
-                      ],
-                    ),
-                    selected: _defaultChoiceIndex == index,
-                    selectedColor: btnColor,
-                    onSelected: (bool selected) {
-                      _resetCounter();
-                      setState(() {
-                        _defaultChoiceIndex = selected ? index : 0;
-                        ticket_amt = chipvalue.ticketAmount!;
-                        print(_defaultChoiceIndex + 1);
-                      });
-                    },
-                    backgroundColor: Theme.of(context).primaryColor,
-                    labelStyle: const TextStyle(color: Colors.white),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(3.0),
-                    ),
-                  );
-                },
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.0,
-                  mainAxisSpacing: 10.0,
-                  crossAxisSpacing: 5.0,
-                  mainAxisExtent: 35.0,
+                          const SizedBox(
+                            width: 10,
+                          ),
+                          Expanded(
+                            child: Text(
+                              _choices[index].ticketName.toString(),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      selected: _defaultChoiceIndex == index,
+                      selectedColor: btnColor,
+                      onSelected: (bool selected) {
+                        _resetCounter();
+                        setState(() {
+                          _defaultChoiceIndex = selected ? index : 0;
+                          ticket_amt = chipvalue.ticketAmount!;
+                        });
+                      },
+                      backgroundColor: Theme.of(context).primaryColor,
+                      labelStyle: const TextStyle(color: Colors.white),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(3.0),
+                      ),
+                    );
+                  },
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.0,
+                    mainAxisSpacing: 10.0,
+                    crossAxisSpacing: 5.0,
+                    mainAxisExtent: 35.0,
+                  ),
                 ),
               ),
             ),
             Expanded(
-              flex: 4,
+              flex: 6,
               child: TicketShape(
-                t_id: (_defaultChoiceIndex + 1).toString(),
+                t_id: (_defaultChoiceIndex + 1),
                 t_name: _choices[_defaultChoiceIndex].ticketName,
                 t_date: DateFormat('dd-MM-yyyy').format(now).toString(),
                 t_time: DateFormat('hh:mm:ss ').format(now).toString(),
-                t_price: tally.toString(),
+                t_price: formatter.format(num.parse(
+                    _choices[_defaultChoiceIndex].ticketAmount.toString())),
+                t_count: counter,
+                t_total: tally.toString(),
               ),
             ),
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -293,11 +361,46 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ],
                   ),
-                  onPressed: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (context) {
-                      return const TicketScreen(title: "Ticket");
-                    }));
+                  onPressed: () async {
+                    setState(() {
+                      ticket_price = formatter.format(num.parse(
+                          _choices[_defaultChoiceIndex]
+                              .ticketAmount!
+                              .toString()));
+                      ticket_name = _choices[_defaultChoiceIndex].ticketName!;
+                      time = DateFormat('hh:mm:ss a').format(now).toString();
+                      date = DateFormat('dd/MM/yyyy').format(now).toString();
+                    });
+                    if ((await printer.isConnected)!) {
+                      printer.printQRcode("R000062204190001906", 150, 150, 1);
+                      printer.printNewLine();
+                      //printer.printCustom('Text','size','align');
+                      printer.printCustom(
+                          'Arulmigu Vadapalani Aandavar Temple,Vadapalani',
+                          1,
+                          1);
+                      printer.printCustom("Chennai [TM00006]", 1, 1);
+                      printer.printNewLine();
+                      printer.printCustom(ticket_name, 1, 1);
+                      printer.printNewLine();
+                      printer.printCustom(date, 2, 1);
+                      printer.printNewLine();
+                      printer.printLeftRight(
+                          "Receipt No", ":R000062204190001906", 1);
+                      printer.printNewLine();
+                      printer.printLeftRight("Receipt Date", ":$date $time", 1);
+                      printer.printNewLine();
+                      printer.printCustom(
+                          "$counter * RS $ticket_price = RS $tally", 1, 1);
+                      printer.printNewLine();
+                      printer.printCustom(
+                          "Deputy Commissioner Cum Exec Officer", 0, 1);
+                      printer.printNewLine();
+                      printer.printNewLine();
+                      printer.paperCut();
+                    } else {
+                      print('Printer is not connected');
+                    }
                   },
                 ),
               ),

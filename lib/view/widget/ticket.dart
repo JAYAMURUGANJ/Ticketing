@@ -9,14 +9,18 @@ class TicketShape extends StatelessWidget {
       this.t_name,
       this.t_date,
       this.t_time,
-      this.t_price})
+      this.t_price,
+      this.t_count,
+      this.t_total})
       : super(key: key);
 
-  final String? t_id;
+  final int? t_id;
   final String? t_name;
   final String? t_date;
   final String? t_time;
   final String? t_price;
+  final int? t_count;
+  final String? t_total;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +40,7 @@ class TicketShape extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
-                  "Ticket No: " + t_id!,
+                  "Ticket No: " + t_id!.toString(),
                   style: TextStyle(color: Colors.white),
                 ),
                 Text(
@@ -50,8 +54,8 @@ class TicketShape extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(4.0),
                   child: Text(
-                    "\u{20B9} $t_price",
-                    style: TextStyle(color: Colors.white, fontSize: 15),
+                    "\u{20B9} $t_price * $t_count  = \u{20B9} $t_total",
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
                   ),
                 ),
                 Container(
